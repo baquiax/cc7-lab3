@@ -1,0 +1,2 @@
+obj/boot/main.o: boot/main.c
+obj/boot/boot.o: boot/boot.S

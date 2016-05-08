@@ -1,0 +1,52 @@
+#
+# Makefile fragment for the JOS kernel.
+# This is NOT a complete makefile;
+# you must run GNU make in the top-level directory
+# where the GNUmakefile is located.
+#
+
+OBJDIRS += boot
+
+BOOT_OBJS := $(OBJDIR)/boot/boot.o $(OBJDIR)/boot/main.o
+
+$(OBJDIR)/boot/%.o: boot/%.c
+	@echo + cc -Os $<	
+	@mkdir -p $(@D)
+	$(V)$(CC) -nostdinc $(KERN_CFLAGS) -Os -c -o $@ $<
+
+$(OBJDIR)/boot/%.o: boot/%.S
+	@echo + as $<
+	@mkdir -p $(@D)
+	@echo $(V)$(CC) -nostdinc $(KERN_CFLAGS) -c -o $@ $<
+	$(V)$(CC) -nostdinc $(KERN_CFLAGS) -c -o $@ $<
+	
+
+$(OBJDIR)/boot/main.o: boot/main.c
+	@echo + cc -Os $<
+	@echo $(V)$(CC) -nostdinc $(KERN_CFLAGS) -Os -c -o $(OBJDIR)/boot/main.o boot/main.c
+	$(V)$(CC) -nostdinc $(KERN_CFLAGS) -Os -c -o $(OBJDIR)/boot/main.o boot/main.c
+	
+
+$(OBJDIR)/boot/boot: $(BOOT_OBJS)
+	@echo + ld boot/boot
+	@echo +++ 	$(V)$(LD) $(LDFLAGS) -N -e start -Ttext 0x7C00 -o $@.out $^
+	@echo +++	$(V)$(OBJDUMP) -S $@.out >$@.asm
+	@echo +++	$(V)$(OBJCOPY) -S -O binary $@.out $@
+	@echo +++	$(V)perl boot/sign.pl $(OBJDIR)/boot/boot
+
+	$(V)$(LD) $(LDFLAGS) -N -e start -Ttext 0x7C00 -o $@.out $^
+	$(V)$(OBJDUMP) -S $@.out >$@.asm
+	$(V)$(OBJCOPY) -S -O binary $@.out $@
+	$(V)perl boot/sign.pl $(OBJDIR)/boot/boot
+
+
+# How to build the Bochs disk image
+$(OBJDIR)/kern/bochs.img: $(OBJDIR)/boot/boot
+	@echo + mk $@
+	$(V)dd if=/dev/zero of=$(OBJDIR)/boot/bochs.img~ count=10000 2>/dev/null
+	$(V)dd if=$(OBJDIR)/boot/boot of=$(OBJDIR)/boot/bochs.img~ conv=notrunc 2>/dev/null
+	
+	$(V)mv $(OBJDIR)/boot/bochs.img~ $(OBJDIR)/boot/bochs.img
+
+all: $(OBJDIR)/kern/bochs.img
+
